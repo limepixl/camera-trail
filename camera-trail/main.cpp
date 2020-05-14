@@ -6,7 +6,7 @@ int main()
 {
 	const int WIDTH = 1280;
 	const int HEIGHT = 720;
-	const int TRESHOLD = 250;
+	const int TRESHOLD = 255;
 
 	// Create SFML window
 	sf::RenderWindow window(sf::VideoMode(WIDTH, HEIGHT), "Camera Trail (Stefan Ivanovski)");
@@ -37,10 +37,6 @@ int main()
 	camImage.create(WIDTH, HEIGHT);
 	sf::Texture camTexture;
 
-	sf::Image lightMap;
-	lightMap.create(WIDTH, HEIGHT, sf::Color(255, 255, 255, 0));
-	sf::Texture lightMapTexture;
-
 	while(window.isOpen())
 	{
 		sf::Event e;
@@ -50,39 +46,41 @@ int main()
 				window.close();
 		}
 
+		// Capture a frame
 		doCapture(0);
-		while(isCaptureDone(0) == 0)
-		{}
 
 		for(int i = 0; i < HEIGHT; i++)
 		{
 			for(int j = 0; j < WIDTH; j++)
 			{
+				const sf::Color& c = camImage.getPixel(j, i);
+
 				int r = (capture.mTargetBuf[i * WIDTH + j] >> 16) & 0xff;
 				int g = (capture.mTargetBuf[i * WIDTH + j] >> 8) & 0xff;
 				int b = capture.mTargetBuf[i * WIDTH + j] & 0xff;
-				camImage.setPixel(j, i, sf::Color(r, g, b));
+				camImage.setPixel(j, i, sf::Color(r, g, b, c.a));
 
 				if(r >= TRESHOLD && g >= TRESHOLD && b >= TRESHOLD)
-					lightMap.setPixel(j, i, sf::Color::White);
-				else
-					lightMap.setPixel(j, i, lightMap.getPixel(j, i) - sf::Color(0, 0, 0, 10));
+					camImage.setPixel(j, i, sf::Color(r, g, b) - sf::Color(0, 0, 0, 255));
+				else if(c.a != 255)
+					camImage.setPixel(j, i, sf::Color(r, g, b, c.a) + sf::Color(0, 0, 0, 3));
 			}
 		}
 
 		camTexture.loadFromImage(camImage);
 		sf::Sprite camSprite(camTexture);
 
-		lightMapTexture.loadFromImage(lightMap);
-		sf::Sprite lightMapSprite(lightMapTexture);
-
-		window.clear(sf::Color::Black);
+		window.clear(sf::Color::White);
 		window.draw(camSprite);
-		window.draw(lightMapSprite);
 		window.display();
 	}
 
-	delete[] capture.mTargetBuf;
+	// Wait for last capture to end
+	while(isCaptureDone(0) == 0)
+	{}
+
 	deinitCapture(0);
+	delete[] capture.mTargetBuf;
+
 	return 0;
 }
