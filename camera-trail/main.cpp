@@ -10,9 +10,42 @@ enum class DrawColor
 	GAME_OF_LIFE
 };
 
-void IterateGOL(std::vector<bool>& grid)
+bool IterateGOL(std::vector<bool>& grid, int rows, int columns)
 {
+	std::vector<bool> tmp = grid;
+	for(int i = 0; i < rows; i++)
+	for(int j = 0; j < columns; j++)
+	{
+		// Count neighbors
+		int numNeighbors = 0;
+		for(int k = -1; k <= 1; k++)
+		for(int l = -1; l <= 1; l++)
+		{
+			// Wrap around
+			int neighborIndex = (i + k) * columns + (j + l);
+			if((k == 0 && l == 0) || neighborIndex < 0 || neighborIndex >= rows * columns)
+				continue;
 
+			if(grid[neighborIndex])
+				numNeighbors++;
+		}
+
+		int index = i * columns + j;
+		if(grid[index] && (numNeighbors == 2 || numNeighbors == 3))
+			continue;
+		else if(!grid[index] && numNeighbors == 3)
+			tmp[index] = true;
+		else
+			tmp[index] = false;
+	}
+
+	if(tmp != grid)
+	{
+		grid = tmp;
+		return true;
+	}
+		
+	return false;
 }
 
 int main()
@@ -51,6 +84,7 @@ int main()
 	sf::VertexArray gridVertices(sf::Quads);
 	sf::RectangleShape cell(sf::Vector2f(cellSize, cellSize));
 	cell.setFillColor(sf::Color(255, 255, 255, 10));
+	bool changedGrid = false;
 
 	// Initialize capture for the first device (0)
 	if(initCapture(0, &capture) == 0)
@@ -122,7 +156,6 @@ int main()
 		// Capture a frame
 		doCapture(0);
 		
-		bool changedGrid = false;
 		for(int i = 0; i < HEIGHT; i++)
 			for(int j = 0; j < WIDTH; j++)
 			{
@@ -161,24 +194,22 @@ int main()
 
 		if(drawColor == DrawColor::GAME_OF_LIFE)
 		{
-			if(changedGrid)
+			gridVertices.clear();
+			for(int i = 0; i < rows; i++)
+			for(int j = 0; j < columns; j++)
 			{
-				gridVertices.clear();
-				for(int i = 0; i < rows; i++)
-				for(int j = 0; j < columns; j++)
+				if(grid.at(i * columns + j))
 				{
-					if(grid.at(i * columns + j))
-					{
-						sf::Vector2f pos(j * cellSize, i * cellSize);
-						gridVertices.append(sf::Vertex(pos + cell.getPoint(0), sf::Color(255, 255, 255, 100)));
-						gridVertices.append(sf::Vertex(pos + cell.getPoint(1), sf::Color(255, 255, 255, 100)));
-						gridVertices.append(sf::Vertex(pos + cell.getPoint(2), sf::Color(255, 255, 255, 100)));
-						gridVertices.append(sf::Vertex(pos + cell.getPoint(3), sf::Color(255, 255, 255, 100)));
-					}
+					sf::Vector2f pos(j * cellSize, i * cellSize);
+					gridVertices.append(sf::Vertex(pos + cell.getPoint(0), sf::Color(255, 255, 255, 100)));
+					gridVertices.append(sf::Vertex(pos + cell.getPoint(1), sf::Color(255, 255, 255, 100)));
+					gridVertices.append(sf::Vertex(pos + cell.getPoint(2), sf::Color(255, 255, 255, 100)));
+					gridVertices.append(sf::Vertex(pos + cell.getPoint(3), sf::Color(255, 255, 255, 100)));
 				}
 			}
 
 			window.draw(gridVertices);
+			IterateGOL(grid, rows, columns);
 		}
 		window.display();
 	}
