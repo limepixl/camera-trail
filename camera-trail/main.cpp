@@ -6,8 +6,14 @@
 enum class DrawColor
 {
 	NORMAL,
-	RAINBOW
+	RAINBOW,
+	GAME_OF_LIFE
 };
+
+void IterateGOL(std::vector<bool>& grid)
+{
+
+}
 
 int main()
 {
@@ -33,6 +39,18 @@ int main()
 	capture.mWidth = WIDTH;
 	capture.mHeight = HEIGHT;
 	capture.mTargetBuf = new int[WIDTH * HEIGHT];
+
+	// Game of life grid
+	int cellSize = 5;
+	int columns = WIDTH / cellSize;
+	int rows = HEIGHT / cellSize + 1;
+	std::vector<bool> grid;
+	grid.resize(rows * columns);
+
+	// Game of life cell
+	sf::VertexArray gridVertices(sf::Quads);
+	sf::RectangleShape cell(sf::Vector2f(cellSize, cellSize));
+	cell.setFillColor(sf::Color(255, 255, 255, 10));
 
 	// Initialize capture for the first device (0)
 	if(initCapture(0, &capture) == 0)
@@ -96,23 +114,35 @@ int main()
 					drawColor = DrawColor::NORMAL;
 				else if(e.key.code == sf::Keyboard::Num2)
 					drawColor = DrawColor::RAINBOW;
+				else if(e.key.code == sf::Keyboard::Num3)
+					drawColor = DrawColor::GAME_OF_LIFE;
 			}
 		}
 
 		// Capture a frame
 		doCapture(0);
-
+		
+		bool changedGrid = false;
 		for(int i = 0; i < HEIGHT; i++)
 			for(int j = 0; j < WIDTH; j++)
 			{
 				const sf::Color& c = camImage.getPixel(j, i);
 				int r = (capture.mTargetBuf[i * WIDTH + j] >> 16) & 0xff;
 				int g = (capture.mTargetBuf[i * WIDTH + j] >> 8) & 0xff;
-				int b = capture.mTargetBuf[i * WIDTH + j] & 0xff;
+				int b =  capture.mTargetBuf[i * WIDTH + j] & 0xff;
 				camImage.setPixel(j, i, sf::Color(r, g, b, c.a));
 
 				if(r >= TRESHOLD && g >= TRESHOLD && b >= TRESHOLD)
+				{
 					camImage.setPixel(j, i, sf::Color(r, g, b) - sf::Color(0, 0, 0, 200));
+
+					int gridIndex = (i / cellSize) * columns + j / cellSize;
+					if(!grid.at(gridIndex))
+					{
+						grid.at(gridIndex) = true;
+						changedGrid = true;
+					}
+				}
 				else if(!drawMode && c.a != 255)
 					camImage.setPixel(j, i, sf::Color(r, g, b, c.a) + sf::Color(0, 0, 0, 3));
 			}
@@ -120,14 +150,36 @@ int main()
 		camTexture.loadFromImage(camImage);
 		sf::Sprite camSprite(camTexture);
 
-		if(drawColor == DrawColor::NORMAL)
-			window.clear(sf::Color::White);
-		else if(drawColor == DrawColor::RAINBOW)
+		if(drawColor == DrawColor::RAINBOW)
 		{	
 			sf::Color& currentColor = rainbowColors.at(iteration++ % rainbowColors.size());
 			window.clear(currentColor);
-		}
+		} else
+			window.clear(sf::Color::White);
+
 		window.draw(camSprite);
+
+		if(drawColor == DrawColor::GAME_OF_LIFE)
+		{
+			if(changedGrid)
+			{
+				gridVertices.clear();
+				for(int i = 0; i < rows; i++)
+				for(int j = 0; j < columns; j++)
+				{
+					if(grid.at(i * columns + j))
+					{
+						sf::Vector2f pos(j * cellSize, i * cellSize);
+						gridVertices.append(sf::Vertex(pos + cell.getPoint(0), sf::Color(255, 255, 255, 100)));
+						gridVertices.append(sf::Vertex(pos + cell.getPoint(1), sf::Color(255, 255, 255, 100)));
+						gridVertices.append(sf::Vertex(pos + cell.getPoint(2), sf::Color(255, 255, 255, 100)));
+						gridVertices.append(sf::Vertex(pos + cell.getPoint(3), sf::Color(255, 255, 255, 100)));
+					}
+				}
+			}
+
+			window.draw(gridVertices);
+		}
 		window.display();
 	}
 
