@@ -83,11 +83,11 @@ int main()
 			{
 				if(drawMode && e.key.code == sf::Keyboard::Space)
 					for(int i = 0; i < HEIGHT; i++)
-						for(int j = 0; j < WIDTH; j++)
-						{
-							const sf::Color& c = camImage.getPixel(j, i);
-							camImage.setPixel(j, i, sf::Color(c.r, c.g, c.b, 255));
-						}
+					for(int j = 0; j < WIDTH; j++)
+					{
+						const sf::Color& c = camImage.getPixel(j, i);
+						camImage.setPixel(j, i, sf::Color(c.r, c.g, c.b, 255));
+					}
 
 				if(e.key.code == sf::Keyboard::LControl)
 					drawMode = !drawMode;
@@ -120,9 +120,9 @@ int main()
 		camTexture.loadFromImage(camImage);
 		sf::Sprite camSprite(camTexture);
 
-		if(drawColor == NORMAL)
+		if(drawColor == DrawColor::NORMAL)
 			window.clear(sf::Color::White);
-		else if(drawColor == RAINBOW)
+		else if(drawColor == DrawColor::RAINBOW)
 		{	
 			sf::Color& currentColor = rainbowColors.at(iteration++ % rainbowColors.size());
 			window.clear(currentColor);
