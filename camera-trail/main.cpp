@@ -3,49 +3,86 @@
 #include <vector>
 #include <SFML/Graphics.hpp>
 
-enum class DrawColor
+enum class DrawMode
 {
 	NORMAL,
 	RAINBOW,
-	GAME_OF_LIFE
+	GAME_OF_LIFE,
+	SAND
 };
 
-bool IterateGOL(std::vector<bool>& grid, int rows, int columns)
+void IterateCellularAutomata(std::vector<bool>& grid, int rows, int columns, DrawMode& mode)
 {
 	std::vector<bool> tmp = grid;
 	for(int i = 0; i < rows; i++)
 	for(int j = 0; j < columns; j++)
 	{
-		// Count neighbors
-		int numNeighbors = 0;
-		for(int k = -1; k <= 1; k++)
-		for(int l = -1; l <= 1; l++)
+		int index = i * columns + j;
+		
+		if(mode == DrawMode::GAME_OF_LIFE)
 		{
-			// Wrap around
-			int neighborIndex = (i + k) * columns + (j + l);
-			if((k == 0 && l == 0) || neighborIndex < 0 || neighborIndex >= rows * columns)
+			int numNeighbors = 0;
+			bool neighbors[8] {0};
+
+			for(int k = -1; k <= 1; k++)
+			for(int l = -1; l <= 1; l++)
+			{
+				// Wrap around
+				int neighborIndex = (i + k) * columns + (j + l);
+				if((k == 0 && l == 0) || neighborIndex < 0 || neighborIndex >= rows * columns)
+					continue;
+
+				if(grid[neighborIndex])
+					neighbors[numNeighbors++] = true;
+			}
+			if(grid[index] && (numNeighbors == 2 || numNeighbors == 3))
+				continue;
+			else if(!grid[index] && numNeighbors == 3)
+				tmp[index] = true;
+			else
+				tmp[index] = false;
+		}
+		else if(mode == DrawMode::SAND)
+		{
+			// Count neighbors
+			int neighbors[3] {0};
+			int numNeighbors = 0;
+
+			for(int l = -1; l <= 1; l++)
+			{
+				int neighborIndex = (i + 1) * columns + j + l;
+				if(neighborIndex < 0 || neighborIndex >= rows * columns)
+				{
+					neighbors[l + 1] = -1;
+					continue;
+				}
+
+				if(grid[neighborIndex])
+					neighbors[numNeighbors++] = 1;
+			}
+
+			if(!grid[index])
 				continue;
 
-			if(grid[neighborIndex])
-				numNeighbors++;
+			if(neighbors[1] == 0) // falling straight down
+			{
+				tmp[index + columns] = true;
+				tmp[index] = false;
+			}
+			else if(neighbors[0] == 0)	// falling to the left
+			{
+				tmp[index + columns - 1] = true;
+				tmp[index] = false;
+			}
+			else if(neighbors[2] == 0) // falling to the right
+			{
+				tmp[index + columns + 1] = true;
+				tmp[index] = false;
+			}
 		}
-
-		int index = i * columns + j;
-		if(grid[index] && (numNeighbors == 2 || numNeighbors == 3))
-			continue;
-		else if(!grid[index] && numNeighbors == 3)
-			tmp[index] = true;
-		else
-			tmp[index] = false;
 	}
 
-	if(tmp != grid)
-	{
-		grid = tmp;
-		return true;
-	}
-		
-	return false;
+	grid = tmp;
 }
 
 int main()
@@ -53,7 +90,7 @@ int main()
 	const int WIDTH = 1280;
 	const int HEIGHT = 720;
 	const int TRESHOLD = 255;
-	bool drawMode = false;	// Drawing or trail
+	bool trail = true;	// Drawing or trail
 
 	// Create SFML window
 	sf::RenderWindow window(sf::VideoMode(WIDTH, HEIGHT), "Camera Trail (Stefan Ivanovski)");
@@ -121,7 +158,7 @@ int main()
 		sf::Color(200, 0, 50)
 	};
 
-	DrawColor drawColor = DrawColor::NORMAL;
+	DrawMode drawMode = DrawMode::NORMAL;
 	unsigned iteration = 0;
 	while(window.isOpen())
 	{
@@ -133,7 +170,7 @@ int main()
 
 			if(e.type == sf::Event::KeyPressed)
 			{
-				if(drawMode && e.key.code == sf::Keyboard::Space)
+				if(!trail && e.key.code == sf::Keyboard::Space)
 					for(int i = 0; i < HEIGHT; i++)
 					for(int j = 0; j < WIDTH; j++)
 					{
@@ -142,14 +179,16 @@ int main()
 					}
 
 				if(e.key.code == sf::Keyboard::LControl)
-					drawMode = !drawMode;
+					trail = !trail;
 
 				if(e.key.code == sf::Keyboard::Num1)
-					drawColor = DrawColor::NORMAL;
+					drawMode = DrawMode::NORMAL;
 				else if(e.key.code == sf::Keyboard::Num2)
-					drawColor = DrawColor::RAINBOW;
+					drawMode = DrawMode::RAINBOW;
 				else if(e.key.code == sf::Keyboard::Num3)
-					drawColor = DrawColor::GAME_OF_LIFE;
+					drawMode = DrawMode::GAME_OF_LIFE;
+				else if(e.key.code == sf::Keyboard::Num4)
+					drawMode = DrawMode::SAND;
 			}
 		}
 
@@ -176,23 +215,23 @@ int main()
 						changedGrid = true;
 					}
 				}
-				else if(!drawMode && c.a != 255)
+				else if(trail && c.a != 255)
 					camImage.setPixel(j, i, sf::Color(r, g, b, c.a) + sf::Color(0, 0, 0, 3));
 			}
 
 		camTexture.loadFromImage(camImage);
 		sf::Sprite camSprite(camTexture);
 
-		if(drawColor == DrawColor::RAINBOW)
+		window.clear(sf::Color::White);
+		if(drawMode == DrawMode::RAINBOW)
 		{	
 			sf::Color& currentColor = rainbowColors.at(iteration++ % rainbowColors.size());
 			window.clear(currentColor);
-		} else
-			window.clear(sf::Color::White);
+		} 
 
 		window.draw(camSprite);
 
-		if(drawColor == DrawColor::GAME_OF_LIFE)
+		if(drawMode == DrawMode::GAME_OF_LIFE || drawMode == DrawMode::SAND)
 		{
 			gridVertices.clear();
 			for(int i = 0; i < rows; i++)
@@ -209,7 +248,9 @@ int main()
 			}
 
 			window.draw(gridVertices);
-			IterateGOL(grid, rows, columns);
+
+			if(drawMode == DrawMode::GAME_OF_LIFE || drawMode == DrawMode::SAND)
+				IterateCellularAutomata(grid, rows, columns, drawMode);
 		}
 		window.display();
 	}
