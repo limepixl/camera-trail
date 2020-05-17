@@ -119,9 +119,8 @@ int main()
 
 	// Game of life cell
 	sf::VertexArray gridVertices(sf::Quads);
-	sf::RectangleShape cell(sf::Vector2f(cellSize, cellSize));
+	sf::RectangleShape cell(sf::Vector2f((float)cellSize, (float)cellSize));
 	cell.setFillColor(sf::Color(255, 255, 255, 10));
-	bool changedGrid = false;
 
 	// Initialize capture for the first device (0)
 	if(initCapture(0, &capture) == 0)
@@ -170,13 +169,23 @@ int main()
 
 			if(e.type == sf::Event::KeyPressed)
 			{
-				if(!trail && e.key.code == sf::Keyboard::Space)
-					for(int i = 0; i < HEIGHT; i++)
-					for(int j = 0; j < WIDTH; j++)
+				if(e.key.code == sf::Keyboard::Space)
+				{
+					if(!trail)
 					{
-						const sf::Color& c = camImage.getPixel(j, i);
-						camImage.setPixel(j, i, sf::Color(c.r, c.g, c.b, 255));
+						// Clear drawn image
+						for(int i = 0; i < HEIGHT; i++)
+						for(int j = 0; j < WIDTH; j++)
+						{
+							const sf::Color& c = camImage.getPixel(j, i);
+							camImage.setPixel(j, i, sf::Color(c.r, c.g, c.b, 255));
+						}
 					}
+
+					// Clear grid
+					for(size_t i = 0; i < grid.size(); i++)
+						grid.at(i) = false;
+				}
 
 				if(e.key.code == sf::Keyboard::LControl)
 					trail = !trail;
@@ -206,14 +215,11 @@ int main()
 
 				if(r >= TRESHOLD && g >= TRESHOLD && b >= TRESHOLD)
 				{
-					camImage.setPixel(j, i, sf::Color(r, g, b) - sf::Color(0, 0, 0, 200));
+					if(drawMode != DrawMode::SAND)	// Looks better without the trail
+						camImage.setPixel(j, i, sf::Color(r, g, b) - sf::Color(0, 0, 0, 200));
 
 					int gridIndex = (i / cellSize) * columns + j / cellSize;
-					if(!grid.at(gridIndex))
-					{
-						grid.at(gridIndex) = true;
-						changedGrid = true;
-					}
+					grid.at(gridIndex) = true;
 				}
 				else if(trail && c.a != 255)
 					camImage.setPixel(j, i, sf::Color(r, g, b, c.a) + sf::Color(0, 0, 0, 3));
@@ -239,7 +245,7 @@ int main()
 			{
 				if(grid.at(i * columns + j))
 				{
-					sf::Vector2f pos(j * cellSize, i * cellSize);
+					sf::Vector2f pos(j * (float)cellSize, i * (float)cellSize);
 					gridVertices.append(sf::Vertex(pos + cell.getPoint(0), sf::Color(255, 255, 255, 100)));
 					gridVertices.append(sf::Vertex(pos + cell.getPoint(1), sf::Color(255, 255, 255, 100)));
 					gridVertices.append(sf::Vertex(pos + cell.getPoint(2), sf::Color(255, 255, 255, 100)));
