@@ -5,6 +5,7 @@
 
 enum class DrawMode
 {
+	NONE,
 	NORMAL,
 	RAINBOW,
 	GAME_OF_LIFE,
@@ -114,8 +115,7 @@ int main()
 	int cellSize = 5;
 	int columns = WIDTH / cellSize;
 	int rows = HEIGHT / cellSize + 1;
-	std::vector<bool> grid;
-	grid.resize(rows * columns);
+	std::vector<bool> grid(rows * columns, false);
 
 	// Game of life cell
 	sf::VertexArray gridVertices(sf::Quads);
@@ -190,7 +190,9 @@ int main()
 				if(e.key.code == sf::Keyboard::LControl)
 					trail = !trail;
 
-				if(e.key.code == sf::Keyboard::Num1)
+				if(e.key.code == sf::Keyboard::Num0)
+					drawMode = DrawMode::NONE;
+				else if(e.key.code == sf::Keyboard::Num1)
 					drawMode = DrawMode::NORMAL;
 				else if(e.key.code == sf::Keyboard::Num2)
 					drawMode = DrawMode::RAINBOW;
@@ -205,25 +207,24 @@ int main()
 		doCapture(0);
 		
 		for(int i = 0; i < HEIGHT; i++)
-			for(int j = 0; j < WIDTH; j++)
+		for(int j = 0; j < WIDTH; j++)
+		{
+			const sf::Color& c = camImage.getPixel(j, i);
+			int r = (capture.mTargetBuf[i * WIDTH + j] >> 16) & 0xff;
+			int g = (capture.mTargetBuf[i * WIDTH + j] >> 8) & 0xff;
+			int b =  capture.mTargetBuf[i * WIDTH + j] & 0xff;
+			camImage.setPixel(j, i, sf::Color(r, g, b, c.a));
+
+			if(drawMode != DrawMode::NONE && r >= TRESHOLD && g >= TRESHOLD && b >= TRESHOLD)
 			{
-				const sf::Color& c = camImage.getPixel(j, i);
-				int r = (capture.mTargetBuf[i * WIDTH + j] >> 16) & 0xff;
-				int g = (capture.mTargetBuf[i * WIDTH + j] >> 8) & 0xff;
-				int b =  capture.mTargetBuf[i * WIDTH + j] & 0xff;
-				camImage.setPixel(j, i, sf::Color(r, g, b, c.a));
+				if(drawMode != DrawMode::SAND)	// Looks better without the trail
+					camImage.setPixel(j, i, sf::Color(r, g, b) - sf::Color(0, 0, 0, 200));
 
-				if(r >= TRESHOLD && g >= TRESHOLD && b >= TRESHOLD)
-				{
-					if(drawMode != DrawMode::SAND)	// Looks better without the trail
-						camImage.setPixel(j, i, sf::Color(r, g, b) - sf::Color(0, 0, 0, 200));
-
-					int gridIndex = (i / cellSize) * columns + j / cellSize;
-					grid.at(gridIndex) = true;
-				}
-				else if(trail && c.a != 255)
-					camImage.setPixel(j, i, sf::Color(r, g, b, c.a) + sf::Color(0, 0, 0, 3));
+				grid.at((i / cellSize) * columns + j / cellSize) = true;
 			}
+			else if(trail && c.a != 255)
+				camImage.setPixel(j, i, sf::Color(r, g, b, c.a) + sf::Color(0, 0, 0, 3));
+		}
 
 		camTexture.loadFromImage(camImage);
 		sf::Sprite camSprite(camTexture);
